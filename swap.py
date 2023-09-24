@@ -119,7 +119,8 @@ def sqrt_price_to_tick(sqrt_price: float) -> Tuple[int, int]:
 
 
 def swap_x_for_y(
-    liquidity_data,
+    all_liquidity_data,
+    liquidity_profile,
     curr_price,
     tick_spacing,
     amount_in: float
@@ -146,7 +147,9 @@ def swap_x_for_y(
     lower_tick_sqrt_price, _ = tick_to_sqrt_price(32190, 1)
 
     while amount_remaining > 0:
-        tiers_within_tick = liquidity_data[liquidity_data['tick'] == curr_tick]
+        tiers_within_tick = liquidity_profile[
+            liquidity_profile['tick'] == curr_tick
+        ]
         len_tiers_within_tick = len(tiers_within_tick)
         for i in range(len_tiers_within_tick):
             liquidity = tiers_within_tick['total_liquidity'].values[i]
@@ -171,8 +174,9 @@ def swap_x_for_y(
 
 if __name__ == "__main__":
     df = get_liquidity_data()
-    df = agg_liquidity_data(df)
+    agg_df = agg_liquidity_data(df)
     liq_df = get_liquidity_at_each_tick(df)
     liq_tick_df = get_liquidity_for_each_fee_tier(df)
-    fee = swap_x_for_y(liq_tick_df, 5, 1, 100)
+    breakpoint()
+    fee = swap_x_for_y(liq_profile, liq_tick_df, 5, 1, 100)
     print(fee)
