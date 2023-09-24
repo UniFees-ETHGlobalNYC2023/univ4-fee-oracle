@@ -3,6 +3,7 @@ from typing import Tuple
 import pandas as pd
 from collections import defaultdict
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 def get_liquidity_data(path='sample_data/all_pos.csv'):
@@ -208,6 +209,48 @@ def pro_rata_fee_share(liq_tick_add_df, fee_share):
     return lp_fee
 
 
+def liquidity_profile_chart(new_df):
+    # Ensure that seaborn's styles are applied
+    sns.set_style("whitegrid")
+
+    # Bucket the ticks
+    new_df['bucket'] = (new_df['tick'] // 100) * 100
+
+    # Group data
+    grouped = new_df.groupby(['bucket', 'fee_tier'])['liquidity'].sum().unstack().fillna(0)
+
+    # Create the plot
+    fig, ax = plt.subplots(figsize=(15, 7))
+
+    # Using Seaborn's pastel color palette
+    colors = sns.color_palette("pastel")
+
+    # Bar width
+    bar_width = 0.6
+
+    # Stacked bar plot
+    grouped.plot(kind='bar', stacked=True, ax=ax, width=bar_width, color=colors)
+    grouped = grouped[grouped.columns[::-1]]
+
+    # Adjust x and y labels
+    ax.set_title('Liquidity for Different Fee Tiers Across Tick Buckets', fontsize=16, fontweight="bold")
+    ax.set_ylabel('Liquidity', fontsize=14)
+    ax.set_xlabel('Tick Bucket', fontsize=14)
+    ax.tick_params(axis="x", rotation=90, labelsize=12)
+    ax.tick_params(axis="y", labelsize=12)
+
+    # Legend settings
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, reversed(labels), title='Fee Tier', loc='upper left', fontsize=10, title_fontsize=12)
+
+    # Remove the box around the plot for a cleaner look
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    plt.tight_layout()
+    plt.show()
+
+
 if __name__ == "__main__":
     df = get_liquidity_data()
     # liq_share = liquidity_share(df)
@@ -218,4 +261,5 @@ if __name__ == "__main__":
     fee, fee_share = swap_x_for_y(df, liq_tick_df, 5, 100)
     print(fee)
     lp_fees = pro_rata_fee_share(liq_tick_add_df, fee_share)
+    liquidity_profile_chart(liq_tick_add_df)
     breakpoint()
