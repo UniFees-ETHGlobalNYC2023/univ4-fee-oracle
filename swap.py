@@ -2,6 +2,7 @@ from math import log, floor
 from typing import Tuple
 import pandas as pd
 from collections import defaultdict
+import matplotlib.pyplot as plt
 
 
 def get_liquidity_data(path='sample_data/all_pos.csv'):
@@ -196,13 +197,25 @@ def swap_x_for_y(
         lower_tick_sqrt_price, _ = tick_to_sqrt_price(curr_tick, 1)
 
 
+def pro_rata_fee_share(liq_tick_add_df, fee_share):
+    df = liq_tick_add_df.merge(fee_share, on=['tick', 'fee_tier'], how='inner')
+    agg = df.groupby(['tick', 'liquidity']).agg({'address': 'nunique'})
+    agg.columns = ['unique_addresses']
+    agg.reset_index(inplace=True)
+    df = df.merge(agg, on=['tick', 'liquidity'], how='inner')
+    df['lp_fee'] = df.fee/df.unique_addresses
+    lp_fee = df.groupby('address')['lp_fee'].sum('lp_fee')
+    return lp_fee
+
+
 if __name__ == "__main__":
     df = get_liquidity_data()
     # liq_share = liquidity_share(df)
     agg_df = agg_liquidity_data(df)
     liq_df = get_liquidity_at_each_tick(agg_df)
     liq_tick_df = get_liquidity_for_each_fee_tier(agg_df)
-    liq_tick_agg_df = get_liquidity_for_each_address(df)
+    liq_tick_add_df = get_liquidity_for_each_address(df)
     fee, fee_share = swap_x_for_y(df, liq_tick_df, 5, 100)
     print(fee)
+    lp_fees = pro_rata_fee_share(liq_tick_add_df, fee_share)
     breakpoint()
