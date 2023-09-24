@@ -7,6 +7,10 @@ from collections import defaultdict
 def get_liquidity_data(path='sample_data/all_pos.csv'):
     df = pd.read_csv(path)
     df['fee_tier'] = df['fee_tier']/1000000
+    return df
+
+
+def agg_liquidity_data(df):
     df = df.groupby(['lower_tick', 'upper_tick', 'fee_tier']).sum('liquidity')
     df.reset_index(inplace=True)
     return df
@@ -167,6 +171,7 @@ def swap_x_for_y(
 
 if __name__ == "__main__":
     df = get_liquidity_data()
+    df = agg_liquidity_data(df)
     liq_df = get_liquidity_at_each_tick(df)
     liq_tick_df = get_liquidity_for_each_fee_tier(df)
     fee = swap_x_for_y(liq_tick_df, 5, 1, 100)
