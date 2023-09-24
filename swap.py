@@ -48,6 +48,20 @@ def get_liquidity_for_each_fee_tier(df):
     return liquidity_df.sort_values(['tick', 'fee_tier'])
 
 
+def get_liquidity_for_each_address(df):
+    new_rows = []
+    for _, row in df.iterrows():
+        for tick in range(row['lower_tick'], row['upper_tick'] + 1):
+            new_rows.append({
+                'address': row['address'],
+                'tick': tick,
+                'liquidity': row['liquidity'],
+                'fee_tier': row['fee_tier']
+            })
+
+    return pd.DataFrame(new_rows)
+
+
 def tick_by_tick_spacing(precise_tick: float, tick_spacing: int = 1) -> int:
     """
     Rounds down the precise tick to the nearest tick that is a multiple
@@ -122,7 +136,6 @@ def swap_x_for_y(
     all_liquidity_data,
     liquidity_profile,
     curr_price,
-    tick_spacing,
     amount_in: float
 ) -> float:
     """
@@ -140,9 +153,9 @@ def swap_x_for_y(
     float
         The amount of token Y swapped out.
     """
-
+    liquidity_profile['fee'] = 0
     amount_remaining = amount_in
-    fee = 0
+    total_fee = 0
     curr_tick = sqrt_price_to_tick(curr_price)[0]
     lower_tick_sqrt_price, _ = tick_to_sqrt_price(32190, 1)
 
@@ -160,12 +173,23 @@ def swap_x_for_y(
             amount_used = delta_inv_sqrt_price * liquidity
             amount_used_w_fee = amount_used/(1-fee_tier)
             if amount_used_w_fee > amount_remaining:
-                fee += amount_remaining * fee_tier
+                fee = amount_remaining * fee_tier
+                liquidity_profile.loc[
+                    (liquidity_profile['tick'] == curr_tick)
+                    & (liquidity_profile['fee_tier'] == fee_tier), 'fee'
+                ] = fee
+                total_fee += fee
                 amount_remaining = 0
                 lower_tick_sqrt_price
-                return fee
+                return total_fee, liquidity_profile
             else:
-                fee += amount_used_w_fee - amount_used
+                fee = amount_used_w_fee - amount_used
+                # breakpoint()
+                liquidity_profile.loc[
+                    (liquidity_profile['tick'] == curr_tick)
+                    & (liquidity_profile['fee_tier'] == fee_tier), 'fee'
+                ] = fee
+                total_fee += fee
                 amount_remaining = amount_remaining - amount_used_w_fee
         curr_price = lower_tick_sqrt_price
         curr_tick = curr_tick - 1
@@ -174,9 +198,11 @@ def swap_x_for_y(
 
 if __name__ == "__main__":
     df = get_liquidity_data()
+    # liq_share = liquidity_share(df)
     agg_df = agg_liquidity_data(df)
-    liq_df = get_liquidity_at_each_tick(df)
-    liq_tick_df = get_liquidity_for_each_fee_tier(df)
-    breakpoint()
-    fee = swap_x_for_y(liq_profile, liq_tick_df, 5, 1, 100)
+    liq_df = get_liquidity_at_each_tick(agg_df)
+    liq_tick_df = get_liquidity_for_each_fee_tier(agg_df)
+    liq_tick_agg_df = get_liquidity_for_each_address(df)
+    fee, fee_share = swap_x_for_y(df, liq_tick_df, 5, 100)
     print(fee)
+    breakpoint()
